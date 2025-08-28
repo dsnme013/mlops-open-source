@@ -1,0 +1,15 @@
+stages:
+  make_dataset:
+    cmd: python src/make_dataset.py
+    outs:
+      - data/iris.csv
+  train:
+    cmd: python src/train.py
+    deps:
+      - src/train.py
+      - data/iris.csv
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - data/iris.csv

@@ -1,0 +1,45 @@
+name: CI-CT-CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'data/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest -q
+
+  train_register_build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start MLflow server
+        run: |
+          pip install mlflow
+          mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns --host 127.0.0.1 --port 5000 &
+          sleep 5
+      - name: Train
+        run: |
+          pip install -r requirements.txt
+          export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+          export MLFLOW_EXPERIMENT=iris_experiment
+          python src/train.py --n-estimators 100
+      - name: Evaluate
+        run: python src/evaluate.py
+      - name: Register model
+        run: python src/register_model.py --threshold 0.90
+      - name: Build Docker (optional)
+        run: docker build -t iris-api .

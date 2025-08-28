@@ -1,0 +1,11 @@
+pandas
+scikit-learn
+mlflow
+dvc
+fastapi
+uvicorn[standard]
+prometheus-client
+evidently
+joblib
+python-dotenv
+pytest

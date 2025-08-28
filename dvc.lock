@@ -1,0 +1,31 @@
+schema: '2.0'
+stages:
+  make_dataset:
+    cmd: python src/make_dataset.py
+    outs:
+    - path: data/iris.csv
+      hash: md5
+      md5: 5800fdd9aef31a98bc4ff239783be831
+      size: 4029
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: data/iris.csv
+      hash: md5
+      md5: 5800fdd9aef31a98bc4ff239783be831
+      size: 4029
+    - path: src/train.py
+      hash: md5
+      md5: ca746d36fe8e9ebc43b8728cbf446da8
+      size: 1686
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/iris.csv
+      hash: md5
+      md5: 5800fdd9aef31a98bc4ff239783be831
+      size: 4029
+    - path: src/evaluate.py
+      hash: md5
+      md5: 56e2d9e319975f8da1b8e83870fb2966
+      size: 1051
