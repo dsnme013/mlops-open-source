@@ -1,0 +1,22 @@
+artifact_path: file:C:/Users/reddy/Downloads/mlops-open-source/mlops-open-source/mlruns/1/models/m-3ad8d6a94179459ab8fb868a05d06e6a/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.1
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.1
+mlflow_version: 3.3.2
+model_id: m-3ad8d6a94179459ab8fb868a05d06e6a
+model_size_bytes: 158168
+model_uuid: m-3ad8d6a94179459ab8fb868a05d06e6a
+prompts: null
+run_id: ddb34627b78e4311bea3f517cf0f5ace
+utc_time_created: '2025-08-29 04:25:02.243949'

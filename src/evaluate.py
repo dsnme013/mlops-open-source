@@ -20,7 +20,7 @@ def main():
 
     best = runs[0]
     print(f"Best run_id={best.info.run_id} accuracy={best.data.metrics.get('accuracy')}")
-    model_uri = f"runs:/{best.info.run_id}/random_forest_model"
+    model_uri = f"runs:/{best.info.run_id}/model"
     model = mlflow.sklearn.load_model(model_uri)
 
     df = pd.read_csv("data/iris.csv")

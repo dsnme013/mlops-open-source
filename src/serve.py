@@ -1,56 +1,84 @@
-# src/serve.py
+# src/serve.py  (only the relevant parts shown)
+
 import os
 import mlflow
 import pandas as pd
 from fastapi import FastAPI, Response
-from pydantic import BaseModel
+from typing import Dict, Any
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 app = FastAPI()
 
-REQUEST_COUNT = Counter("request_count", "Total number of requests", ["endpoint", "method", "status"])
+REQUEST_COUNT = Counter("request_count", "Total requests", ["endpoint","method","status"])
 REQUEST_LATENCY = Histogram("request_latency_seconds", "Request latency", ["endpoint"])
 
 MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 MODEL_NAME = os.environ.get("MLFLOW_MODEL_NAME", "iris_model")
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
+# ---- load model exactly as you prefer (registry Production or fallback) ----
+# Example (registry only):
+# model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/Production")
+
+# Example (registry, then fallback to best run's 'model' or 'random_forest_model'):
+from mlflow.tracking import MlflowClient
 def load_model():
     try:
-        model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/Production")
-        print("Loaded model from registry: Production")
-        return model
-    except Exception as e:
-        print("Could not load from registry, trying latest run model:", e)
-        client = mlflow.tracking.MlflowClient()
-        exp = client.get_experiment_by_name(os.environ.get("MLFLOW_EXPERIMENT", "iris_experiment"))
-        runs = client.search_runs(exp.experiment_id, order_by=["start_time DESC"], max_results=1)
-        if runs:
-            run_id = runs[0].info.run_id
-            return mlflow.pyfunc.load_model(f"runs:/{run_id}/random_forest_model")
-        raise RuntimeError("No model available")
-
+        return mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/Production")
+    except Exception:
+        client = MlflowClient()
+        exp = client.get_experiment_by_name(os.environ.get("MLFLOW_EXPERIMENT","iris_experiment"))
+        run = client.search_runs(exp.experiment_id, order_by=["metrics.accuracy DESC"], max_results=1)[0]
+        run_id = run.info.run_id
+        for p in ["model","random_forest_model"]:
+            try:
+                return mlflow.pyfunc.load_model(f"runs:/{run_id}/{p}")
+            except Exception:
+                pass
+        raise RuntimeError("No loadable model found")
 model = load_model()
 
-class IrisData(BaseModel):
-    sepal_length: float
-    sepal_width: float
-    petal_length: float
-    petal_width: float
+# Map snake_case -> training names
+NAME_MAP = {
+    "sepal_length": "sepal length (cm)",
+    "sepal_width":  "sepal width (cm)",
+    "petal_length": "petal length (cm)",
+    "petal_width":  "petal width (cm)",
+}
+REQUIRED = list(NAME_MAP.values())
 
 @app.post("/predict")
-def predict(payload: IrisData):
-    import time
+def predict(payload: Dict[str, Any]):
+    import time, numpy as np, traceback
     t0 = time.time()
-    df = pd.DataFrame([payload.dict().values()], columns=payload.dict().keys())
     try:
-        pred = model.predict(df)[0]
-        status = "200"
-        return {"prediction": pred}
+        row: Dict[str, float] = {}
+
+        # accept original names
+        for k, v in payload.items():
+            if k in REQUIRED:
+                row[k] = float(v)
+
+        # accept snake_case and remap
+        for k, v in payload.items():
+            if k in NAME_MAP:
+                row[NAME_MAP[k]] = float(v)
+
+        missing = [k for k in REQUIRED if k not in row]
+        if missing:
+            raise ValueError(f"missing features: {missing}")
+
+        df = pd.DataFrame([{k: row[k] for k in REQUIRED}])
+        pred = model.predict(df)
+        if isinstance(pred, (list, tuple, np.ndarray)):
+            pred = pred[0]
+        return {"prediction": str(pred)}
+    except Exception as e:
+        traceback.print_exc()
+        return {"error": f"prediction failed: {e}"}
     finally:
-        latency = time.time() - t0
-        REQUEST_LATENCY.labels(endpoint="/predict").observe(latency)
-        REQUEST_COUNT.labels(endpoint="/predict", method="POST", status=status).inc()
+        REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - t0)
+        REQUEST_COUNT.labels(endpoint="/predict", method="POST", status="200").inc()
 
 @app.get("/metrics")
 def metrics():
