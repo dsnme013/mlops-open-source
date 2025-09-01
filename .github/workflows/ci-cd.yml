@@ -50,8 +50,8 @@ jobs:
 
       - name: Pull data with DVC
         run: dvc pull
-      # - name: Generate dataset
-      #   run: python src/make_dataset.py
+      - name: Generate dataset
+        run: python src/make_dataset.py
 
       - name: Train
         run: |
