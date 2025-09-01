@@ -45,11 +45,11 @@ jobs:
           sleep 5
 
       # 👇 Added dataset generation step
-      - name: Set up DVC
-        run: pip install dvc
+      # - name: Set up DVC
+      #   run: pip install dvc
 
-      - name: Pull data with DVC
-        run: dvc pull
+      # - name: Pull data with DVC
+      #   run: dvc pull
       - name: Generate dataset
         run: python src/make_dataset.py
 
