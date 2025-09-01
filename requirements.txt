@@ -1,6 +1,6 @@
 pandas
 scikit-learn
-mlflow
+mlflow<3
 dvc
 fastapi
 uvicorn[standard]

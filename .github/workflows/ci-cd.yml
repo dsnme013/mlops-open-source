@@ -3,10 +3,10 @@ name: CI-CD Pipeline
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'data/**'
-      - 'Dockerfile'
+    # paths:
+    #   - 'src/**'
+    #   - 'data/**'
+    #   - 'Dockerfile'
 
 jobs:
   test:
@@ -29,7 +29,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     env: # 👇 MLflow + DagsHub credentials
-      MLFLOW_TRACKING_URI: https://dagshub.com/Tsravyareddy2002/my-first-repo.mlflow
+      MLFLOW_TRACKING_URI: https://dagshub.com/Tsravyareddy2002/mlops_open_source.mlflow
       MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
       MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
       MLFLOW_EXPERIMENT: iris_experiment
