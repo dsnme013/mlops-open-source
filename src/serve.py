@@ -12,7 +12,7 @@ app = FastAPI()
 REQUEST_COUNT = Counter("request_count", "Total requests", ["endpoint","method","status"])
 REQUEST_LATENCY = Histogram("request_latency_seconds", "Request latency", ["endpoint"])
 
-MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:8080")
 MODEL_NAME = os.environ.get("MLFLOW_MODEL_NAME", "iris_model")
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
