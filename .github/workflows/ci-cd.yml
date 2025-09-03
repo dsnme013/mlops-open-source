@@ -1,4 +1,4 @@
-name: CI-CD Pipeline
+name: CI-CD Pipeline 
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
   train_register_build:
     needs: test
     runs-on: ubuntu-latest
-    env:
+    env: # 👇 MLflow + DagsHub credentials
       MLFLOW_TRACKING_URI: https://dagshub.com/Tsravyareddy2002/mlops_open_source.mlflow
       MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
       MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
@@ -74,6 +74,10 @@ jobs:
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # ✅ Debug step to check secret expansion
+      - name: Debug image name
+        run: echo "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest"
 
       - name: Build Docker image
         run: docker build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest .
