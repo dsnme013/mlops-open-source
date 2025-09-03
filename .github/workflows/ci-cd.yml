@@ -66,6 +66,10 @@ jobs:
       - name: Set up Docker Buildx
         run: docker buildx create --use
 
+      # Step to list available Docker Buildx builders
+      - name: List Docker Buildx builders
+        run: docker buildx ls
+
       - name: Auth with GCP
         uses: google-github-actions/auth@v2
         with:
@@ -79,13 +83,20 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
-      # ✅ Debug step to check secret expansion and show image name
+      # Debug step to check secret expansion and show image name
       - name: Debug image name
         run: echo "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest"
 
+      # Debug step to print the current directory and ensure we're in the correct path
+      - name: Debug the current directory
+        run: |
+          echo "Current directory is: $(pwd)"
+          ls -alh  # List files in the current directory to ensure Dockerfile is present
+
       # Build Docker image with buildx
       - name: Build Docker image with buildx
-        run: docker buildx build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest .
+        run: |
+          docker buildx build -f ./Dockerfile -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest .
 
       # Push the Docker image to Artifact Registry
       - name: Push Docker image to Artifact Registry
