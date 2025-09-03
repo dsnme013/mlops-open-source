@@ -79,8 +79,9 @@ jobs:
       - name: Debug image name
         run: echo "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest"
 
-      - name: Build Docker image
-        run: docker build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest .
+      # Use docker buildx build (enhanced build with multi-platform support)
+      - name: Build Docker image with buildx
+        run: docker buildx build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest .
 
       # Push the Docker image to Artifact Registry
       - name: Push Docker image to Artifact Registry
