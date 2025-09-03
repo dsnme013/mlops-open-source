@@ -24,7 +24,7 @@ jobs:
   train_register_build:
     needs: test
     runs-on: ubuntu-latest
-    env:
+    env: # 👇 MLflow + DagsHub credentials
       MLFLOW_TRACKING_URI: https://dagshub.com/Tsravyareddy2002/mlops_open_source.mlflow
       MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
       MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
@@ -52,20 +52,11 @@ jobs:
       - name: Register model
         run: python src/register_model.py --threshold 0.90
 
-  docker_build_push:
+  deploy_dockerhub:
     needs: train_register_build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check Docker version
-        run: docker --version
-
-      - name: Set up Docker Buildx
-        run: docker buildx create --use
-
-      - name: List Docker Buildx builders
-        run: docker buildx ls
 
       - name: Auth with GCP
         uses: google-github-actions/auth@v2
@@ -77,33 +68,11 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Debug image name
-        run: echo "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest"
-
-      - name: Debug the current directory
-        run: |
-          echo "Current directory is: $(pwd)"
-          ls -alh
-
-      # ✅ FIXED BUILD STEP
-      - name: Build Docker image with buildx
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest \
-            . --load
-
-      - name: Push Docker image to Artifact Registry
-        run: |
-          docker push ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest
-
+      # ✅ Directly deploy Docker Hub image instead of building/pushing
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy iris-api \
-            --image=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest \
+            --image=docker.io/sravya0907/iris-api:latest \
             --platform=managed \
             --region=${{ secrets.GCP_REGION }} \
             --allow-unauthenticated
