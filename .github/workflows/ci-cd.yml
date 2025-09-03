@@ -62,6 +62,10 @@ jobs:
       - name: Check Docker version
         run: docker --version
 
+      # Step to set up buildx (ensures the builder is configured for multi-platform builds)
+      - name: Set up Docker Buildx
+        run: docker buildx create --use
+
       - name: Auth with GCP
         uses: google-github-actions/auth@v2
         with:
@@ -79,7 +83,7 @@ jobs:
       - name: Debug image name
         run: echo "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest"
 
-      # Use docker buildx build (enhanced build with multi-platform support)
+      # Build Docker image with buildx
       - name: Build Docker image with buildx
         run: docker buildx build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest .
 
