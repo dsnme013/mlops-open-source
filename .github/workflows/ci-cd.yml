@@ -1,12 +1,8 @@
-name: CI-CD Pipeline 
+name: CI-CD Pipeline
 
 on:
   push:
     branches: [ main ]
-    # paths:
-    #   - 'src/**'
-    #   - 'data/**'
-    #   - 'Dockerfile'
 
 jobs:
   test:
@@ -62,6 +58,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Step to verify Docker is working on GitHub runner
+      - name: Check Docker version
+        run: docker --version
+
       - name: Auth with GCP
         uses: google-github-actions/auth@v2
         with:
@@ -75,16 +75,19 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
-      # ✅ Debug step to check secret expansion
+      # ✅ Debug step to check secret expansion and show image name
       - name: Debug image name
         run: echo "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest"
 
       - name: Build Docker image
         run: docker build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest .
 
-      - name: Push Docker image
-        run: docker push ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest
+      # Push the Docker image to Artifact Registry
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/iris-api:latest
 
+      # Deploy the Docker image to Cloud Run
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy iris-api \
