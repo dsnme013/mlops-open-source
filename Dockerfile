@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the entire src and web folder into the working directory
 COPY src/ ./src
-COPY web/ ./web
+COPY frontend_code/ ./frontend_code
 
 # Expose port 8080 for Cloud Run
 EXPOSE 8080
