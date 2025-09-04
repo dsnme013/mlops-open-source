@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from typing import Dict, Any
 from mlflow.tracking import MlflowClient
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 # ---------------------------
 # FastAPI app + CORS
@@ -18,9 +20,9 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # allow all origins (can restrict later)
+    allow_origins=["*"],        # Allow all origins (can restrict later)
     allow_credentials=True,
-    allow_methods=["*"],        # allow GET, POST, OPTIONS etc
+    allow_methods=["*"],        # Allow GET, POST, OPTIONS etc
     allow_headers=["*"],
 )
 
@@ -36,7 +38,6 @@ REQUEST_LATENCY = Histogram("request_latency_seconds", "Request latency", ["endp
 MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 MODEL_NAME = os.environ.get("MLFLOW_MODEL_NAME", "iris_model")
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
 
 def load_model():
     """Try loading model from MLflow registry or latest run."""
@@ -54,15 +55,13 @@ def load_model():
                 pass
         raise RuntimeError("No loadable model found")
 
-
-# Lazy load
+# Lazy load model
 model = None
 def get_model():
     global model
     if model is None:
         model = load_model()
     return model
-
 
 # ---------------------------
 # Feature mapping
@@ -85,11 +84,15 @@ SPECIES_MAP = {
 }
 
 # ---------------------------
-# Endpoints
+# Serve static files (Frontend)
 # ---------------------------
+# Serve static files (HTML, CSS, JS) from /web folder
+app.mount("/app", StaticFiles(directory="web", html=True), name="web")
+
 @app.get("/")
-def root():
-    return {"status": "ok"}
+def root_redirect():
+    # Redirect root URL to the frontend
+    return RedirectResponse(url="/app")
 
 @app.get("/healthz")
 def healthz():
@@ -125,7 +128,7 @@ async def predict(payload: Dict[str, Any] = Body(...)):
     except Exception as e:
         traceback.print_exc()
         status = "500"
-        return {"error": f"prediction failed: {e}"}
+        return {"error": f"Prediction failed: {e}"}
     finally:
         REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - t0)
         REQUEST_COUNT.labels(endpoint="/predict", method="POST", status=status).inc()

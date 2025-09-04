@@ -1,16 +1,21 @@
-# Dockerfile
 FROM python:3.9-slim
 
 WORKDIR /app
+
+# Copy requirements.txt and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire src and web folder into the working directory
 COPY src/ ./src
+COPY web/ ./web
 
-# Cloud Run listens on $PORT. Default to 8080 if not set.
-ENV PORT=8080
-
-# (Optional, but fine to keep)
+# Expose port 8080 for Cloud Run
 EXPOSE 8080
 
-# Don't hardcode MLFLOW_TRACKING_URI here. We'll pass it at deploy time.
-CMD ["sh", "-c", "uvicorn src.serve:app --host 0.0.0.0 --port ${PORT}"]
+# Set environment variables for MLflow
+ENV MLFLOW_TRACKING_URI=http://host.docker.internal:8080
+ENV PORT=8080
+
+# Run the app using uvicorn
+CMD ["uvicorn", "src.serve:app", "--host", "0.0.0.0", "--port", "${PORT}"]

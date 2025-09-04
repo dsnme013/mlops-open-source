@@ -9,66 +9,70 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Install deps
         run: pip install -r requirements.txt
-
       - name: Run tests
         run: pytest -q
 
   train_register_build:
     needs: test
     runs-on: ubuntu-latest
-    env: # 👇 MLflow + DagsHub credentials
+    env: 
       MLFLOW_TRACKING_URI: https://dagshub.com/Tsravyareddy2002/mlops_open_source.mlflow
       MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
       MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
       MLFLOW_EXPERIMENT: iris_experiment
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Install deps
         run: pip install -r requirements.txt
-
       - name: Generate dataset
         run: python src/make_dataset.py
-
       - name: Train model
         run: python src/train.py --n-estimators 100
-
       - name: Evaluate model
         run: python src/evaluate.py
-
       - name: Register model
         run: python src/register_model.py --threshold 0.90
 
-  deploy_dockerhub:
+  build_and_push_docker:
     needs: train_register_build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -t docker.io/sravya0907/iris-api:latest .
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push docker.io/sravya0907/iris-api:latest
 
+  deploy_to_cloud_run:
+    needs: build_and_push_docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Auth with GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-
       - name: Configure gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      # ✅ Directly deploy Docker Hub image instead of building/pushing
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy iris-api \
