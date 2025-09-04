@@ -1,23 +1,26 @@
 import os
 import mlflow
 import pandas as pd
-from fastapi import FastAPI, Response, Request, Body
-from typing import Dict, Any
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-from fastapi.middleware.cors import CORSMiddleware
-import traceback
 import numpy as np
+import traceback
+import time
+
+from fastapi import FastAPI, Response, Body
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from typing import Dict, Any
 from mlflow.tracking import MlflowClient
 
 # ---------------------------
 # FastAPI app + CORS
 # ---------------------------
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # allow all origins (frontend can be local file or hosted)
+    allow_origins=["*"],        # allow all origins (can restrict later)
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["*"],        # allow GET, POST, OPTIONS etc
     allow_headers=["*"],
 )
 
@@ -36,6 +39,7 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 
 def load_model():
+    """Try loading model from MLflow registry or latest run."""
     try:
         return mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/Production")
     except Exception:
@@ -83,29 +87,21 @@ SPECIES_MAP = {
 # ---------------------------
 # Endpoints
 # ---------------------------
-@app.api_route("/", methods=["GET", "POST", "OPTIONS"])
-async def root(request: Request):
-    if request.method == "OPTIONS":
-        return Response(status_code=200)
+@app.get("/")
+def root():
     return {"status": "ok"}
-
 
 @app.get("/healthz")
 def healthz():
     return {"status": "healthy"}
 
-
-@app.api_route("/predict", methods=["POST", "OPTIONS"])
-async def predict(request: Request, payload: Dict[str, Any] = Body(...)):
-    if request.method == "OPTIONS":  # Handle preflight CORS
-        return Response(status_code=200)
-
-    import time
+@app.post("/predict")
+async def predict(payload: Dict[str, Any] = Body(...)):
     t0 = time.time()
     status = "200"
     try:
         row: Dict[str, float] = {}
-        # Accept both raw and mapped names
+        # Accept both raw keys and mapped keys
         for k, v in payload.items():
             if k in REQUIRED:
                 row[k] = float(v)
@@ -122,8 +118,10 @@ async def predict(request: Request, payload: Dict[str, Any] = Body(...)):
         pred = get_model().predict(df)
         if isinstance(pred, (list, tuple, np.ndarray)):
             pred = pred[0]
+
         species = SPECIES_MAP.get(int(pred), "Unknown")
         return {"prediction": int(pred), "species": species}
+
     except Exception as e:
         traceback.print_exc()
         status = "500"
@@ -131,7 +129,6 @@ async def predict(request: Request, payload: Dict[str, Any] = Body(...)):
     finally:
         REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - t0)
         REQUEST_COUNT.labels(endpoint="/predict", method="POST", status=status).inc()
-
 
 @app.get("/metrics")
 def metrics():
