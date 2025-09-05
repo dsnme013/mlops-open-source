@@ -3,16 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iris Prediction Test</title>
+  <title>Iris Flower Prediction</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
       background: #f5f5f5;
     }
-    h1 {
-      color: #333;
-    }
+    h1 { color: #333; }
     form {
       margin-bottom: 20px;
       padding: 15px;
@@ -21,11 +19,7 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       max-width: 400px;
     }
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
-    }
+    label { display: block; margin-top: 10px; font-weight: bold; }
     input {
       width: 100%;
       padding: 8px;
@@ -42,9 +36,7 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    button:hover {
-      background: #0056b3;
-    }
+    button:hover { background: #0056b3; }
     #response {
       white-space: pre-wrap;
       background: #fff;
@@ -59,17 +51,13 @@
   <h1>Iris Flower Prediction</h1>
   <form id="predictForm">
     <label for="sepal_length">Sepal Length (cm):</label>
-    <input type="number" step="0.1" id="sepal_length" name="sepal_length" required>
-
+    <input type="number" step="0.1" id="sepal_length" required>
     <label for="sepal_width">Sepal Width (cm):</label>
-    <input type="number" step="0.1" id="sepal_width" name="sepal_width" required>
-
+    <input type="number" step="0.1" id="sepal_width" required>
     <label for="petal_length">Petal Length (cm):</label>
-    <input type="number" step="0.1" id="petal_length" name="petal_length" required>
-
+    <input type="number" step="0.1" id="petal_length" required>
     <label for="petal_width">Petal Width (cm):</label>
-    <input type="number" step="0.1" id="petal_width" name="petal_width" required>
-
+    <input type="number" step="0.1" id="petal_width" required>
     <button type="submit">Predict</button>
   </form>
 
@@ -79,13 +67,12 @@
     const form = document.getElementById('predictForm');
     const responseDiv = document.getElementById('response');
 
-    // Backend URL (Cloud Run URL)
-    const serviceUrl = "https://iris-api-534376957405.asia-south1.run.app/predict";
+    // Cloud Run gives frontend + backend same domain → no need to hardcode
+    const serviceUrl = "/predict";
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
-      // Collect form data
       const payload = {
         sepal_length: parseFloat(document.getElementById('sepal_length').value),
         sepal_width: parseFloat(document.getElementById('sepal_width').value),
@@ -96,19 +83,13 @@
       try {
         const res = await fetch(serviceUrl, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
         if (res.ok) {
           const data = await res.json();
-          if (data.species) {
-            responseDiv.innerHTML = `<strong>Prediction:</strong> ${data.species} (class ${data.prediction})`;
-          } else {
-            responseDiv.innerHTML = `<strong>Response:</strong> ${JSON.stringify(data)}`;
-          }
+          responseDiv.innerHTML = `<strong>Prediction:</strong> ${data.species} (class ${data.prediction})`;
         } else {
           responseDiv.innerHTML = `Error: ${res.status} - ${res.statusText}`;
         }

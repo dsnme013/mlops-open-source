@@ -6,16 +6,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire src and web folder into the working directory
+# Copy source code and frontend
 COPY src/ ./src
 COPY frontend_code/ ./frontend_code
 
-# Expose port 8080 for Cloud Run
+# Expose Cloud Run port
 EXPOSE 8080
 
-# Set environment variables for MLflow
-ENV MLFLOW_TRACKING_URI=http://host.docker.internal:8080
+# Set environment variables (Cloud Run will also inject $PORT automatically)
 ENV PORT=8080
 
-# Run the app using uvicorn
-CMD ["uvicorn", "src.serve:app", "--host", "0.0.0.0", "--port", "${PORT}"]
+# Run FastAPI with uvicorn (use shell form so $PORT expands correctly)
+CMD uvicorn src.serve:app --host 0.0.0.0 --port $PORT

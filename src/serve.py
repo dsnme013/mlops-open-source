@@ -20,9 +20,9 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # Allow all origins (can restrict later)
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],        # Allow GET, POST, OPTIONS etc
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -40,7 +40,6 @@ MODEL_NAME = os.environ.get("MLFLOW_MODEL_NAME", "iris_model")
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 def load_model():
-    """Try loading model from MLflow registry or latest run."""
     try:
         return mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/Production")
     except Exception:
@@ -55,7 +54,6 @@ def load_model():
                 pass
         raise RuntimeError("No loadable model found")
 
-# Lazy load model
 model = None
 def get_model():
     global model
@@ -64,7 +62,7 @@ def get_model():
     return model
 
 # ---------------------------
-# Feature mapping
+# Feature + Species mapping
 # ---------------------------
 NAME_MAP = {
     "sepal_length": "sepal length (cm)",
@@ -74,9 +72,6 @@ NAME_MAP = {
 }
 REQUIRED = list(NAME_MAP.values())
 
-# ---------------------------
-# Species mapping
-# ---------------------------
 SPECIES_MAP = {
     0: "Iris-setosa",
     1: "Iris-versicolor",
@@ -84,15 +79,9 @@ SPECIES_MAP = {
 }
 
 # ---------------------------
-# Serve static files (Frontend)
+# Serve frontend
 # ---------------------------
-# Serve static files (HTML, CSS, JS) from /web folder
-app.mount("/app", StaticFiles(directory="web", html=True), name="web")
-
-@app.get("/")
-def root_redirect():
-    # Redirect root URL to the frontend
-    return RedirectResponse(url="/app")
+app.mount("/", StaticFiles(directory="frontend_code", html=True), name="frontend")
 
 @app.get("/healthz")
 def healthz():
@@ -103,8 +92,7 @@ async def predict(payload: Dict[str, Any] = Body(...)):
     t0 = time.time()
     status = "200"
     try:
-        row: Dict[str, float] = {}
-        # Accept both raw keys and mapped keys
+        row = {}
         for k, v in payload.items():
             if k in REQUIRED:
                 row[k] = float(v)
@@ -112,7 +100,6 @@ async def predict(payload: Dict[str, Any] = Body(...)):
             if k in NAME_MAP:
                 row[NAME_MAP[k]] = float(v)
 
-        # Ensure all required features are present
         missing = [k for k in REQUIRED if k not in row]
         if missing:
             raise ValueError(f"missing features: {missing}")
