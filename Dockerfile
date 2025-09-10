@@ -17,4 +17,4 @@ EXPOSE 8080
 ENV PORT=8080
 
 # Run FastAPI with uvicorn (use shell form so $PORT expands correctly)
-CMD uvicorn src.serve:app --host 0.0.0.0 --port $PORT
+CMD ["uvicorn", "src.serve:app", "--host", "0.0.0.0", "--port", "8080"]

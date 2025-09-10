@@ -7,11 +7,11 @@ import time
 
 from fastapi import FastAPI, Response, Body
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from typing import Dict, Any
 from mlflow.tracking import MlflowClient
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
 
 # ---------------------------
 # FastAPI app + CORS
@@ -20,7 +20,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,14 +79,24 @@ SPECIES_MAP = {
 }
 
 # ---------------------------
-# Serve frontend
+# Frontend serving
 # ---------------------------
-app.mount("/", StaticFiles(directory="frontend_code", html=True), name="frontend")
+
+# Serve index.html at "/"
+@app.get("/")
+def read_index():
+    return FileResponse("frontend_code/index.html")
+
+# Serve static assets (CSS, JS, images)
+app.mount("/static", StaticFiles(directory="frontend_code"), name="static")
 
 @app.get("/healthz")
 def healthz():
     return {"status": "healthy"}
 
+# ---------------------------
+# Prediction endpoint
+# ---------------------------
 @app.post("/predict")
 async def predict(payload: Dict[str, Any] = Body(...)):
     t0 = time.time()
@@ -120,6 +130,9 @@ async def predict(payload: Dict[str, Any] = Body(...)):
         REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - t0)
         REQUEST_COUNT.labels(endpoint="/predict", method="POST", status=status).inc()
 
+# ---------------------------
+# Metrics endpoint
+# ---------------------------
 @app.get("/metrics")
 def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
