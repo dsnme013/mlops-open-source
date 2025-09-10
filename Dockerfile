@@ -16,5 +16,5 @@ EXPOSE 8080
 # Set environment variables (Cloud Run will also inject $PORT automatically)
 ENV PORT=8080
 
-# Run FastAPI with uvicorn (use shell form so $PORT expands correctly)
-CMD ["uvicorn", "src.serve:app", "--host", "0.0.0.0", "--port", "8080"]
+# Use Cloud Run's dynamic port
+CMD exec uvicorn src.serve:app --host 0.0.0.0 --port ${PORT}
