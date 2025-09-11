@@ -16,4 +16,4 @@ EXPOSE 8080
 # Set environment variables (Cloud Run will also inject $PORT automatically)
 ENV PORT=8080
 
-CMD ["uvicorn", "src.serve:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "src.serve:app", "--host", "0.0.0.0", "--port", "$PORT"]
