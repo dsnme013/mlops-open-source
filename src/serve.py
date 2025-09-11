@@ -54,6 +54,7 @@ def load_model():
                 pass
         raise RuntimeError("No loadable model found")
 
+# Lazy load
 model = None
 def get_model():
     global model
@@ -79,20 +80,31 @@ SPECIES_MAP = {
 }
 
 # ---------------------------
-# Frontend serving
+# Root + Health Endpoints
 # ---------------------------
 
-# Serve index.html at "/"
 @app.get("/")
-def read_index():
-    return FileResponse("frontend_code/index.html")
-
-# Serve static assets (CSS, JS, images)
-app.mount("/static", StaticFiles(directory="frontend_code"), name="static")
+def root():
+    """Cloud Run health check root"""
+    return {"status": "ok"}
 
 @app.get("/healthz")
 def healthz():
     return {"status": "healthy"}
+
+# ---------------------------
+# Frontend serving
+# ---------------------------
+@app.get("/ui")
+def serve_index():
+    path = "frontend_code/index.html"
+    if os.path.exists(path):
+        return FileResponse(path)
+    return {"message": "UI not bundled in container"}
+
+# Serve static assets
+if os.path.exists("frontend_code"):
+    app.mount("/static", StaticFiles(directory="frontend_code"), name="static")
 
 # ---------------------------
 # Prediction endpoint
