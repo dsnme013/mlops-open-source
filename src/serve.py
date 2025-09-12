@@ -164,22 +164,38 @@ def predict_post(payload: Dict[str, Any] = Body(...)):
         df = pd.DataFrame([{k: row[k] for k in REQUIRED}])
 
         pred = get_model().predict(df)
-        if isinstance(pred, (list, tuple, np.ndarray)):
-            pred = pred[0]
 
-        # ---- NEW: handle string labels from the model ----
+        # unwrap common container types
+        if isinstance(pred, (list, tuple)) and len(pred) > 0:
+            pred = pred[0]
+        elif isinstance(pred, np.ndarray):
+            try:
+                pred = pred.item()
+            except Exception:
+                if pred.size > 0:
+                    pred = pred.ravel()[0]
+
+        log.info(f"Prediction raw value: {pred!r} (type={type(pred)})")
+
+        # ---- handle string labels from the model ----
         if isinstance(pred, (str, np.str_)):
-            label = pred.strip().lower()
+            label = str(pred).strip()
             aliases = {
                 "setosa": "Iris-setosa",
                 "versicolor": "Iris-versicolor",
                 "virginica": "Iris-virginica",
             }
-            return {"prediction": label, "species": aliases.get(label, pred)}
+            pretty = aliases.get(label.lower(), label)
+            return {"prediction": label, "species": pretty}
 
         # Fallback: numeric labels 0/1/2
-        species = SPECIES_MAP.get(int(pred), "Unknown")
-        return {"prediction": int(pred), "species": species}
+        try:
+            idx = int(pred)
+            species = SPECIES_MAP.get(idx, "Unknown")
+            return {"prediction": idx, "species": species}
+        except Exception:
+            # last resort: do not crash; return as string
+            return {"prediction": str(pred), "species": str(pred)}
 
     except Exception as e:
         traceback.print_exc()
