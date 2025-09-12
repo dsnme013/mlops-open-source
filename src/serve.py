@@ -1,8 +1,9 @@
+# src/serve.py
 import os
 import time
 import traceback
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,7 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("iris-api")
 
-# DagsHub auth
+# ---- DagsHub auth ----
 os.environ["MLFLOW_TRACKING_USERNAME"] = os.getenv("MLFLOW_TRACKING_USERNAME", "")
 os.environ["MLFLOW_TRACKING_PASSWORD"] = os.getenv("MLFLOW_TRACKING_PASSWORD", "")
 
@@ -29,6 +30,7 @@ LOCAL_MODEL_PATH = os.environ.get("LOCAL_MODEL_PATH", "model/model.joblib")
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 log.info(f"Tracking URI: {MLFLOW_TRACKING_URI}")
 
+# ---- Feature names ----
 SHORT_TO_FULL = {
     "sepal_length": "sepal length (cm)",
     "sepal_width": "sepal width (cm)",
@@ -36,10 +38,12 @@ SHORT_TO_FULL = {
     "petal_width": "petal width (cm)",
 }
 REQUIRED = list(SHORT_TO_FULL.values())
+
+# For numeric labels
 SPECIES_MAP = {0: "Iris-setosa", 1: "Iris-versicolor", 2: "Iris-virginica"}
 
+# ---- FastAPI ----
 app = FastAPI(title="Iris Prediction API")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -51,6 +55,7 @@ app.add_middleware(
 REQUEST_COUNT = Counter("request_count", "Total requests", ["endpoint", "method", "status"])
 REQUEST_LATENCY = Histogram("request_latency_seconds", "Request latency", ["endpoint"])
 
+# ---- Model loading helpers ----
 def try_load_registry(name: str):
     try:
         log.info(f"Loading from registry: models:/{name}/Production")
@@ -77,7 +82,7 @@ def try_load_best_run(experiment: str):
                 except Exception:
                     pass
         return None
-    except Exception as e:
+    except Exception:
         log.exception("Error while loading from best run")
         return None
 
@@ -111,6 +116,7 @@ def get_model():
             return _model
     raise RuntimeError("No loadable model found (registry, runs, local all failed)")
 
+# ---- Health ----
 @app.get("/")
 def root():
     return {"status": "ok"}
@@ -123,6 +129,7 @@ def healthz():
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "unhealthy", "error": str(e)})
 
+# ---- Optional GET for quick tests ----
 @app.get("/predict")
 def predict_get(sepal_length: float, sepal_width: float, petal_length: float, petal_width: float):
     payload = {
@@ -133,11 +140,13 @@ def predict_get(sepal_length: float, sepal_width: float, petal_length: float, pe
     }
     return predict_post(payload)
 
+# ---- Main POST endpoint ----
 @app.post("/predict")
 def predict_post(payload: Dict[str, Any] = Body(...)):
     t0 = time.time()
     status = "200"
     try:
+        # Normalize input keys (accept short or full names)
         row = {}
         for k, v in payload.items():
             if v is None:
@@ -153,9 +162,22 @@ def predict_post(payload: Dict[str, Any] = Body(...)):
             return JSONResponse(status_code=400, content={"error": f"missing features: {missing}"})
 
         df = pd.DataFrame([{k: row[k] for k in REQUIRED}])
+
         pred = get_model().predict(df)
         if isinstance(pred, (list, tuple, np.ndarray)):
             pred = pred[0]
+
+        # ---- NEW: handle string labels from the model ----
+        if isinstance(pred, (str, np.str_)):
+            label = pred.strip().lower()
+            aliases = {
+                "setosa": "Iris-setosa",
+                "versicolor": "Iris-versicolor",
+                "virginica": "Iris-virginica",
+            }
+            return {"prediction": label, "species": aliases.get(label, pred)}
+
+        # Fallback: numeric labels 0/1/2
         species = SPECIES_MAP.get(int(pred), "Unknown")
         return {"prediction": int(pred), "species": species}
 
@@ -167,6 +189,7 @@ def predict_post(payload: Dict[str, Any] = Body(...)):
         REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - t0)
         REQUEST_COUNT.labels(endpoint="/predict", method="POST", status=status).inc()
 
+# ---- Frontend (optional) ----
 @app.get("/ui")
 def serve_index():
     path = "frontend_code/index.html"
@@ -177,6 +200,7 @@ def serve_index():
 if os.path.exists("frontend_code"):
     app.mount("/static", StaticFiles(directory="frontend_code"), name="static")
 
+# ---- Metrics ----
 @app.get("/metrics")
 def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
