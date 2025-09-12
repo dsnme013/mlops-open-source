@@ -1,4 +1,3 @@
-# src/train.py
 import os
 import argparse
 import pandas as pd
@@ -15,8 +14,11 @@ def main():
     parser.add_argument("--test-size", type=float, default=0.2)
     args = parser.parse_args()
 
-    mlflow_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    # DagsHub auth
+    os.environ["MLFLOW_TRACKING_USERNAME"] = os.getenv("MLFLOW_TRACKING_USERNAME", "")
+    os.environ["MLFLOW_TRACKING_PASSWORD"] = os.getenv("MLFLOW_TRACKING_PASSWORD", "")
+
+    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000"))
     mlflow.set_experiment(os.environ.get("MLFLOW_EXPERIMENT", "iris_experiment"))
 
     df = pd.read_csv("data/iris.csv")
@@ -37,10 +39,8 @@ def main():
         mlflow.log_param("test_size", args.test_size)
         mlflow.log_metric("accuracy", acc)
 
-        # Log model artifact to MLflow
         mlflow.sklearn.log_model(model, artifact_path="model")
 
-        # Also write a local copy for DVC / quick inspection
         os.makedirs("model", exist_ok=True)
         dump(model, "model/model.joblib")
 
