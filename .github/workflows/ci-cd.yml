@@ -53,13 +53,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 🔹 Login before build so Docker can pull base images
+      - name: Debug repo structure
+        run: ls -R
+
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 👇 adjust build context if your Dockerfile is not in root
+      # if inside "iris-api/" folder → replace "." with "./iris-api"
       - name: Build Docker image
         run: docker build -t $IMAGE .
 
