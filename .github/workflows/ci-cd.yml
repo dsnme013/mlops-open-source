@@ -59,7 +59,7 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/iris-api1:latest
+          IMAGE=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/iris-api:latest
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
           docker buildx build \
             --platform linux/amd64 \
